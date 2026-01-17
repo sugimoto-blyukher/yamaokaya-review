@@ -16,5 +16,5 @@ func Connect() {
 		panic("DB接続失敗")
 	}
 
-	DB.AutoMigrate(&models.Review{})
+	DB.AutoMigrate(&models.Review{}, &models.Shop{}, &models.User{})
 }
