@@ -34,3 +34,32 @@ func FindReviews(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, gin.H{"count": len(reviews), "data": reviews})
 }
+
+func FindReview(c *gin.Context) {
+
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "IDが見つかりません"})
+		return
+	}
+
+	var review models.Review
+
+	result := config.DB.First(&review, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "レビューが見つかりません"})
+		return 
+	}
+
+	c.JSON(http.StatusOK,gin.H{
+		"message": "レビューを取得しました",
+		"data": gin.H{
+			"id": review.ID,
+			"name": review.Name,
+			"score": review.Score,
+			"body": review.Body,
+			"shopID": review.ShopID,
+		},
+	})
+	
+}

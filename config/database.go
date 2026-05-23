@@ -18,3 +18,12 @@ func Connect() {
 
 	DB.AutoMigrate(&models.Review{}, &models.Shop{}, &models.User{})
 }
+
+func InitDB() {
+	//DB.AutoMigrate(&models.User{})
+	DB.AutoMigrate(&models.Review{})
+	println("Created Review table")
+	
+	DB.AutoMigrate(&models.Shop{})
+	println("Created Shop table")
+}
