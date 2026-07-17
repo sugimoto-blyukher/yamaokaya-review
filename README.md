@@ -2,82 +2,64 @@
 
 個人サイト向けの「山岡家レビューAPI」です。
 
-自分が訪れた山岡家の店舗情報やレビューを記録し、個人サイト上で表示するためのバックエンドAPIとして作成しています。
-
-## 概要
-
-このAPIでは、山岡家の店舗情報、レビュー、ユーザー情報を管理できます。
-
-想定している用途は、個人サイトやポートフォリオサイトからAPIを呼び出し、以下のような情報を表示することです。
-
-* 訪問した山岡家の店舗一覧
-* 店舗ごとのレビュー
-* 点数・感想・店舗情報
-* 今後の訪問記録
-
-現時点では学習・開発途中のAPIであり、GoによるWeb API開発、Ginによるルーティング、GORMによるDB操作の練習も兼ねています。
+訪問した山岡家の店舗、レビュー、ユーザーを記録するためのバックエンドAPIです。GoによるWeb API開発、Ginによるルーティング、GORMによるデータベース操作の学習も目的としています。
 
 ## 技術スタック
 
-* Go
-* Gin
-* GORM
-* SQLite
+- Go 1.25
+- Gin
+- GORM
+- SQLite
 
-## 主な機能
+## 現在の機能
 
-### レビュー機能
+- レビューの作成
+- レビュー一覧の取得
+- IDを指定したレビューの取得
+- 店舗の作成
+- ユーザーの作成
+- ユーザー一覧の取得
+- IDを指定したユーザーの取得
 
-* レビューの作成
-* レビュー一覧の取得
-* ID指定によるレビュー取得
+## データモデル
 
-### 店舗機能
-
-* 店舗情報の作成
-* 店舗名、住所、緯度、経度の保存
-
-### ユーザー機能
-
-* ユーザーの作成
-* ユーザー一覧の取得
-* ID指定によるユーザー取得
-
-## データ構造
+各モデルは `gorm.Model` を埋め込んでいるため、`ID`、`CreatedAt`、`UpdatedAt`、`DeletedAt` を持ちます。
 
 ### Review
 
-```json
-{
-  "id": 1,
-  "name": "函館鍛治店レビュー",
-  "score": 4,
-  "body": "深夜に食べる醤油ラーメンがうまい",
-  "shopID": 1
-}
-```
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `name` | string | レビュー名 |
+| `score` | int | 評価点。DB上で1〜5に制限 |
+| `body` | string | レビュー本文 |
+| `shopID` | uint | レビュー対象店舗のID |
+| `userID` | uint | 投稿ユーザーのID |
+
+`Review` は `Shop` と `User` に関連付けられています。店舗またはユーザーを削除した場合、関連するレビューも削除する設定です。
 
 ### Shop
 
-```json
-{
-  "name": "ラーメン山岡家 函館鍛治店",
-  "address": "北海道函館市鍛治...",
-  "lat": 41.0000,
-  "lng": 140.0000
-}
-```
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `name` | string | 店舗名 |
+| `address` | string | 住所 |
+| `lat` | float64 | 緯度 |
+| `lng` | float64 | 経度 |
 
 ### User
 
-```json
-{
-  "name": "sugimoto",
-  "email": "example@example.com"
-}
-```
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `name` | string | ユーザー名 |
+| `email` | string | メールアドレス。DB上で一意 |
 
-## API エンドポイント
+## APIエンドポイント
+
+ベースURLは次のとおりです。
+
+```text
+http://localhost:8080
+```
 
 ### ヘルスチェック
 
@@ -93,12 +75,77 @@ GET /
 }
 ```
 
----
+### 店舗作成
+
+レビューを作成する前に、対象となる店舗を作成します。
+
+```http
+POST /shops
+Content-Type: application/json
+```
+
+リクエスト例:
+
+```json
+{
+  "name": "ラーメン山岡家 函館鍛治店",
+  "address": "北海道函館市鍛治...",
+  "lat": 41.0,
+  "lng": 140.0
+}
+```
+
+成功時はステータス `200 OK` と、保存された店舗を返します。
+
+### ユーザー作成
+
+レビューを作成する前に、投稿するユーザーを作成します。
+
+```http
+POST /users
+Content-Type: application/json
+```
+
+リクエスト例:
+
+```json
+{
+  "name": "sugimoto",
+  "email": "example@example.com"
+}
+```
+
+成功時はステータス `200 OK` と、保存されたユーザーを返します。同じメールアドレスは複数登録できません。
+
+### ユーザー一覧取得
+
+```http
+GET /users
+```
+
+レスポンスは件数を表す `count` と、ユーザーの配列である `data` を含みます。
+
+### ユーザー個別取得
+
+```http
+GET /users/:id
+```
+
+例:
+
+```http
+GET /users/1
+```
+
+対象が存在する場合は `200 OK`、存在しない場合は `404 Not Found` を返します。
 
 ### レビュー作成
 
+`shopID` と `userID` には、先に作成した店舗とユーザーのIDを指定します。
+
 ```http
 POST /reviews
+Content-Type: application/json
 ```
 
 リクエスト例:
@@ -108,11 +155,12 @@ POST /reviews
   "name": "醤油ラーメンレビュー",
   "score": 4,
   "body": "濃い味で深夜に食べるとうまい",
-  "shopID": 1
+  "shopID": 1,
+  "userID": 1
 }
 ```
 
----
+成功時はステータス `200 OK` と、保存されたレビューを返します。`score` のDB制約に違反した場合など、保存に失敗すると `500 Internal Server Error` を返します。
 
 ### レビュー一覧取得
 
@@ -127,17 +175,19 @@ GET /reviews
   "count": 1,
   "data": [
     {
-      "id": 1,
+      "ID": 1,
+      "CreatedAt": "2026-01-01T00:00:00Z",
+      "UpdatedAt": "2026-01-01T00:00:00Z",
+      "DeletedAt": null,
       "name": "醤油ラーメンレビュー",
       "score": 4,
       "body": "濃い味で深夜に食べるとうまい",
-      "shopID": 1
+      "shopID": 1,
+      "userID": 1
     }
   ]
 }
 ```
-
----
 
 ### レビュー個別取得
 
@@ -151,63 +201,22 @@ GET /reviews/:id
 GET /reviews/1
 ```
 
----
-
-### 店舗作成
-
-```http
-POST /shops
-```
-
-リクエスト例:
+レスポンス例:
 
 ```json
 {
-  "name": "ラーメン山岡家 函館鍛治店",
-  "address": "北海道函館市鍛治...",
-  "lat": 41.0000,
-  "lng": 140.0000
+  "message": "レビューを取得しました",
+  "data": {
+    "id": 1,
+    "name": "醤油ラーメンレビュー",
+    "score": 4,
+    "body": "濃い味で深夜に食べるとうまい",
+    "shopID": 1
+  }
 }
 ```
 
----
-
-### ユーザー作成
-
-```http
-POST /users
-```
-
-リクエスト例:
-
-```json
-{
-  "name": "sugimoto",
-  "email": "example@example.com"
-}
-```
-
----
-
-### ユーザー一覧取得
-
-```http
-GET /users
-```
-
----
-
-### ユーザー個別取得
-
-```http
-GET /users/:id
-```
-
-例:
-
-```http
-GET /users/1
-```
+対象が存在しない場合は `404 Not Found` を返します。
 
 ## セットアップ
 
@@ -230,62 +239,29 @@ go mod tidy
 go run main.go
 ```
 
-デフォルトでは `:3000` で起動します。
+サーバーは `http://localhost:8080` で起動します。起動時にSQLiteの `test.db` が作成され、GORMの `AutoMigrate` によって次のテーブルが作成されます。
 
-```text
-http://localhost:3000
-```
-
-## DBについて
-
-このAPIではSQLiteを使用しています。
-
-起動時に `test.db` が作成され、GORMの `AutoMigrate` によって必要なテーブルが作成されます。
-
-現時点で作成される主なテーブルは以下です。
-
-* reviews
-* shops
-* users
+- `reviews`
+- `shops`
+- `users`
 
 ## curlでの動作確認
 
-### 店舗を作成
+店舗、ユーザー、レビューの順に作成します。
 
 ```sh
-curl -X POST http://localhost:3000/shops \
+curl -X POST http://localhost:8080/shops \
   -H "Content-Type: application/json" \
   -d '{
     "name": "ラーメン山岡家 函館鍛治店",
     "address": "北海道函館市鍛治...",
-    "lat": 41.0000,
-    "lng": 140.0000
+    "lat": 41.0,
+    "lng": 140.0
   }'
 ```
 
-### レビューを作成
-
 ```sh
-curl -X POST http://localhost:3000/reviews \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "醤油ラーメンレビュー",
-    "score": 4,
-    "body": "濃い味でうまい",
-    "shopID": 1
-  }'
-```
-
-### レビュー一覧を取得
-
-```sh
-curl http://localhost:3000/reviews
-```
-
-### ユーザーを作成
-
-```sh
-curl -X POST http://localhost:3000/users \
+curl -X POST http://localhost:8080/users \
   -H "Content-Type: application/json" \
   -d '{
     "name": "sugimoto",
@@ -293,21 +269,42 @@ curl -X POST http://localhost:3000/users \
   }'
 ```
 
+```sh
+curl -X POST http://localhost:8080/reviews \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "醤油ラーメンレビュー",
+    "score": 4,
+    "body": "濃い味でうまい",
+    "shopID": 1,
+    "userID": 1
+  }'
+```
+
+```sh
+curl http://localhost:8080/reviews
+```
+
+## テスト
+
+コントローラーのテストでは、SQLiteのインメモリDBを使用しています。
+
+```sh
+go test ./...
+```
+
+現在、レビュー、店舗、ユーザーの作成・一覧取得・個別取得に対応するハンドラーをテストしています。
+
 ## 今後の実装予定
 
-* 店舗一覧取得APIの追加
-* 店舗ごとのレビュー取得
-* レビューの更新・削除
-* 評価点のバリデーション
-* 店舗画像やラーメン画像の保存
-* 個人サイトのフロントエンドとの連携
-* Docker対応
-* テスト追加
-* API仕様書の整備
-* 認証機能の追加
-
-## 開発目的
-
-このリポジトリは、単なるCRUD APIの練習ではなく、個人サイト上で自分の山岡家レビューを表示するためのバックエンドとして作成しています。
-
-また、Go、Gin、GORM、SQLiteを使ったWeb API開発の基本を学び、将来的には個人サイトと連携できる形まで発展させることを目的としています。
+- `GET /shops` のルーティング追加
+- 店舗ごとのレビュー取得
+- レビューの更新・削除
+- API入力時の評価点バリデーション
+- エラーレスポンスとHTTPステータスの整理
+- 店舗画像やラーメン画像の保存
+- 個人サイトのフロントエンドとの連携
+- Docker対応
+- テストの拡充
+- API仕様書の整備
+- 認証機能の追加
