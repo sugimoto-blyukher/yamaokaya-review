@@ -13,7 +13,7 @@ func main() {
 	config.Connect()
 
 	config.InitDB()
-	
+
 	// 2. サーバーの準備
 	r := gin.Default()
 
@@ -31,7 +31,7 @@ func main() {
 	r.POST("/users", controllers.CreateUser)
 	r.GET("/users", controllers.FindUsers)
 	r.GET("/users/:id", controllers.FindUser)
-	
+
 	// 4. 起動
-	r.Run(":3000")
+	r.Run(":8080")
 }
