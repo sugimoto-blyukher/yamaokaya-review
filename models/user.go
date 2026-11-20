@@ -6,5 +6,5 @@ type User struct {
 	gorm.Model
     Name    string   `json:"name" gorm:"not null"`
     Email   string   `json:"email" gorm:"not null;uniqueIndex"`
-    Reviews []Review `json:"-"`
+    Reviews []Review `json:"-" gorm:"constraint:OnUpdate:CASCADE, OnDelete:CASCADE;"`
 }
