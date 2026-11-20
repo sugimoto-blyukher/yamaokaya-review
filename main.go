@@ -3,6 +3,7 @@ package main
 import (
 	"go-prac/config"
 	"go-prac/controllers"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,10 +11,15 @@ import (
 
 func main() {
 	// 1. DB接続開始
-	config.Connect()
+	db, err := config.OpenDatabase(
+		"test.db?foreign_keys=on",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	config.InitDB()
-
+	config.DB = db
+	
 	// 2. サーバーの準備
 	r := gin.Default()
 

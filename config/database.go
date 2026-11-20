@@ -3,27 +3,34 @@ package config
 import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"fmt"
 	"go-prac/models"
 )
 
 var DB *gorm.DB
 
-func Connect() {
-	var err error
-	//グローバル変数のDBを代入
-	DB, err = gorm.Open(sqlite.Open("test.db?_foreign_keys=on"), &gorm.Config{})
-	if err != nil {
-		panic("DB接続失敗")
-	}
+func OpenDatabase(path string) (*gorm.DB, error) {
+    db, err := gorm.Open(
+        sqlite.Open(path),
+        &gorm.Config{},
+    )
+    if err != nil {
+        return nil, fmt.Errorf(
+            "DB接続に失敗: %w", err,
+        )
+    }
 
-	DB.AutoMigrate(&models.Review{}, &models.Shop{}, &models.User{})
-}
+    err = db.AutoMigrate(
+        &models.Shop{},
+        &models.User{},
+        &models.Review{},
+    )
 
-func InitDB() {
-	//DB.AutoMigrate(&models.User{})
-	DB.AutoMigrate(&models.Review{})
-	println("Created Review table")
-	
-	DB.AutoMigrate(&models.Shop{})
-	println("Created Shop table")
+    if err != nil {
+        return nil, fmt.Errorf(
+            "マイグレーションに失敗: %w", err,
+        )
+    }
+
+    return db, nil
 }
