@@ -29,7 +29,7 @@ func CreateShop(c *gin.Context) {
 
 	if err := config.DB.Create(&shop).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "指定された店舗はありません",
+			"error": "店舗の登録に失敗しました",
 		})
 		return
 	}

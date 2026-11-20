@@ -19,7 +19,7 @@ func main() {
 	}
 
 	config.DB = db
-	
+
 	// 2. サーバーの準備
 	r := gin.Default()
 
@@ -33,6 +33,7 @@ func main() {
 	r.POST("/reviews", controllers.CreateReview)
 	r.GET("/reviews", controllers.FindReviews)
 	r.GET("/reviews/:id", controllers.FindReview)
+	r.GET("/shops", controllers.FindShops)
 	r.POST("/shops", controllers.CreateShop)
 	r.POST("/users", controllers.CreateUser)
 	r.GET("/users", controllers.FindUsers)
