@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"net/http"
-	"go-prac/config" // ★DBを使うために読み込む
-	"go-prac/models" // ★構造体を使うために読み込む
+	"go-prac/config" // DBを使うために読み込む
+	"go-prac/models" // 構造体を使うために読み込む
 
 	"github.com/gin-gonic/gin"
 )

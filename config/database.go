@@ -11,7 +11,7 @@ var DB *gorm.DB
 func Connect() {
 	var err error
 	//グローバル変数のDBを代入
-	DB, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open("test.db?_foreign_keys=on"), &gorm.Config{})
 	if err != nil {
 		panic("DB接続失敗")
 	}
