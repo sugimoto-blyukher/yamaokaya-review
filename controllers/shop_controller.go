@@ -1,33 +1,47 @@
 package controllers
 
 import (
+	"go-prac/config"
+	"go-prac/dtos"
+	"go-prac/models"
 	"net/http"
-	"go-prac/config" 
-	"go-prac/models" 
 
 	"github.com/gin-gonic/gin"
 )
 
 func CreateShop(c *gin.Context) {
-	var newShop models.Shop 
 
-	if err := c.ShouldBindJSON(&newShop); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req dtos.CreateShopRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	result := config.DB.Create(&newShop)
-	if result.Error !=nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-        return	
+	shop := models.Shop{
+		Name:    req.Name,
+		Address: req.Address,
+		Lat:     req.Lat,
+		Lng:     req.Lng,
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "店舗を保存しました", "data": newShop})
+	if err := config.DB.Create(&shop).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "指定された店舗はありません",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "店舗を保存しました", "data": shop,
+	})
 }
 
 func FindShops(c *gin.Context) {
 	var shops []models.Shop
 	config.DB.Find(&shops)
 
-	c.JSON(http.StatusOK, gin.H{"count":len(shops), "data": shops})
+	c.JSON(http.StatusOK, gin.H{"count": len(shops), "data": shops})
 }

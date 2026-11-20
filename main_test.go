@@ -64,12 +64,12 @@ func TestReviewControllers(t *testing.T) {
 		t.Fatalf("レビュー用店舗の作成に失敗しました: status=%d response=%v", status, shop)
 	}
 	status, user := request(t, router, http.MethodPost, "/users", `{"name":"太郎","email":"taro@example.com"}`)
-	if status != http.StatusOK {
+	if status != http.StatusCreated {
 		t.Fatalf("レビュー用ユーザーの作成に失敗しました: status=%d response=%v", status, user)
 	}
 
 	status, created := request(t, router, http.MethodPost, "/reviews", `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":1}`)
-	if status != http.StatusOK || created["message"] != "保存しました" {
+	if status != http.StatusCreated {
 		t.Fatalf("CreateReview: status=%d response=%v", status, created)
 	}
 	createdData, ok := created["data"].(map[string]any)
@@ -107,8 +107,12 @@ func TestUserControllers(t *testing.T) {
 	router := setupTestRouter(t)
 
 	status, created := request(t, router, http.MethodPost, "/users", `{"name":"花子","email":"hanako@example.com"}`)
-	if status != http.StatusOK || created["message"] != "保存しました" {
+	if status != http.StatusCreated {
 		t.Fatalf("CreateUser: status=%d response=%v", status, created)
+	}
+	createdData, ok := created["data"].(map[string]any)
+	if !ok || createdData["name"] != "花子" || createdData["email"] != "hanako@example.com" {
+		t.Fatalf("CreateUserのレスポンスが不正です: response=%v", created)
 	}
 
 	status, found := request(t, router, http.MethodGet, "/users/1", "")
@@ -120,5 +124,31 @@ func TestUserControllers(t *testing.T) {
 	status, list := request(t, router, http.MethodGet, "/users", "")
 	if status != http.StatusOK || list["count"] != float64(1) {
 		t.Fatalf("FindUsers: status=%d response=%v", status, list)
+	}
+}
+
+func TestCreateUserValidation(t *testing.T) {
+	router := setupTestRouter(t)
+
+	status, response := request(t, router, http.MethodPost, "/users", `{"name":"花子"}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("必須項目不足時のステータスが不正です: status=%d response=%v", status, response)
+	}
+
+	var count int64
+	if err := config.DB.Model(&models.User{}).Count(&count).Error; err != nil {
+		t.Fatalf("ユーザー件数の取得に失敗しました: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("バリデーションエラー時にユーザーが保存されています: count=%d", count)
+	}
+}
+
+func TestCreateReviewValidation(t *testing.T) {
+	router := setupTestRouter(t)
+
+	status, response := request(t, router, http.MethodPost, "/reviews", `{"name":"太郎","score":6,"body":"おいしい","shopID":1,"userID":1}`)
+	if status != http.StatusBadRequest {
+		t.Fatalf("スコア範囲外のステータスが不正です: status=%d response=%v", status, response)
 	}
 }

@@ -1,27 +1,37 @@
 package controllers
 
 import (
+	"github.com/gin-gonic/gin"
 	"go-prac/config"
+	"go-prac/dtos"
 	"go-prac/models"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 func CreateUser(c *gin.Context) {
-	var newUser models.User
-	if err := c.ShouldBindJSON(&newUser); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req dtos.CreateUserRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	result := config.DB.Create(&newUser)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
+	user := models.User{
+		Name:  req.Name,
+		Email: req.Email,
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "保存しました", "data": newUser})
+	if err := config.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "ユーザーの登録に失敗しました",
+		})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"data": user,
+	})
 }
 
 func FindUsers(c *gin.Context) {
