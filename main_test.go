@@ -134,22 +134,19 @@ func TestReviewControllers(t *testing.T) {
 		})
 	}
 
-	status, created := request(t, router, http.MethodPost, "/reviews", `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":1}`)
-	if status != http.StatusCreated {
-		t.Fatalf("CreateReview: status=%d response=%v", status, created)
-	}
-	createdData, ok := created["data"].(map[string]any)
-	if !ok || createdData["shopID"] != float64(1) || createdData["userID"] != float64(1) {
-		t.Fatalf("CreateReviewの関連IDが不正です: response=%v", created)
-	}
-
 	wantReview := map[string]any{
+		"id":     float64(1),
 		"name":   "太郎",
 		"score":  float64(5),
 		"body":   "おいしい",
 		"shopID": float64(1),
 		"userID": float64(1),
 	}
+	status, created := request(t, router, http.MethodPost, "/reviews", `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":1}`)
+	if status != http.StatusCreated || !reflect.DeepEqual(created["data"], wantReview) {
+		t.Fatalf("CreateReview: status=%d response=%v", status, created)
+	}
+
 	status, found := request(t, router, http.MethodGet, "/reviews/1", "")
 	if status != http.StatusOK || found["message"] != "レビューを取得しました" || !reflect.DeepEqual(found["data"], wantReview) {
 		t.Fatalf("FindReview: status=%d response=%v", status, found)
@@ -182,13 +179,23 @@ func TestFindAllReviewsDatabaseError(t *testing.T) {
 func TestShopControllers(t *testing.T) {
 	router := setupTestRouter(t)
 
+	status, empty := request(t, router, http.MethodGet, "/shops", "")
+	if status != http.StatusOK || empty["count"] != float64(0) || !reflect.DeepEqual(empty["data"], []any{}) {
+		t.Fatalf("空の店舗一覧: status=%d response=%v", status, empty)
+	}
+
+	wantShop := map[string]any{
+		"id":      float64(1),
+		"name":    "山岡家",
+		"address": "札幌市",
+	}
 	status, created := request(t, router, http.MethodPost, "/shops", `{"name":"山岡家","address":"札幌市","lat":43.0,"lng":141.0}`)
-	if status != http.StatusOK || created["message"] != "店舗を保存しました" {
+	if status != http.StatusOK || created["message"] != "店舗を保存しました" || !reflect.DeepEqual(created["data"], wantShop) {
 		t.Fatalf("CreateShop: status=%d response=%v", status, created)
 	}
 
 	status, list := request(t, router, http.MethodGet, "/shops", "")
-	if status != http.StatusOK || list["count"] != float64(1) {
+	if status != http.StatusOK || list["count"] != float64(1) || !reflect.DeepEqual(list["data"], []any{wantShop}) {
 		t.Fatalf("FindShops: status=%d response=%v", status, list)
 	}
 }
@@ -196,18 +203,22 @@ func TestShopControllers(t *testing.T) {
 func TestUserControllers(t *testing.T) {
 	router := setupTestRouter(t)
 
-	status, created := request(t, router, http.MethodPost, "/users", `{"name":"花子","email":"hanako@example.com"}`)
-	if status != http.StatusCreated {
-		t.Fatalf("CreateUser: status=%d response=%v", status, created)
+	status, empty := request(t, router, http.MethodGet, "/users", "")
+	if status != http.StatusOK || empty["count"] != float64(0) || !reflect.DeepEqual(empty["data"], []any{}) {
+		t.Fatalf("空のユーザー一覧: status=%d response=%v", status, empty)
 	}
-	createdData, ok := created["data"].(map[string]any)
-	if !ok || createdData["name"] != "花子" || createdData["email"] != "hanako@example.com" {
-		t.Fatalf("CreateUserのレスポンスが不正です: response=%v", created)
+
+	wantUser := map[string]any{
+		"id":   float64(1),
+		"name": "花子",
+	}
+	status, created := request(t, router, http.MethodPost, "/users", `{"name":"花子","email":"hanako@example.com"}`)
+	if status != http.StatusCreated || !reflect.DeepEqual(created["data"], wantUser) {
+		t.Fatalf("CreateUser: status=%d response=%v", status, created)
 	}
 
 	status, found := request(t, router, http.MethodGet, "/users/1", "")
-	data, ok := found["data"].(map[string]any)
-	if status != http.StatusOK || !ok || len(data) != 2 || data["id"] != float64(1) || data["name"] != "花子" {
+	if status != http.StatusOK || !reflect.DeepEqual(found["data"], wantUser) {
 		t.Fatalf("FindUser: status=%d response=%v", status, found)
 	}
 
@@ -217,13 +228,8 @@ func TestUserControllers(t *testing.T) {
 	}
 
 	status, list := request(t, router, http.MethodGet, "/users", "")
-	users, ok := list["data"].([]any)
-	if status != http.StatusOK || list["count"] != float64(1) || !ok || len(users) != 1 {
+	if status != http.StatusOK || list["count"] != float64(1) || !reflect.DeepEqual(list["data"], []any{wantUser}) {
 		t.Fatalf("FindAllUsers: status=%d response=%v", status, list)
-	}
-	user, ok := users[0].(map[string]any)
-	if !ok || len(user) != 2 || user["id"] != float64(1) || user["name"] != "花子" {
-		t.Fatalf("ユーザー一覧の項目が不正です: response=%v", list)
 	}
 }
 
