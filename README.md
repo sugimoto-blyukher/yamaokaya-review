@@ -287,7 +287,7 @@ curl http://localhost:8080/reviews
 
 ## テスト
 
-コントローラーのテストでは、SQLiteのインメモリDBを使用しています。
+コントローラーのテストでは、アプリと同じ方法で一時ディレクトリにSQLiteのDBを作成します。
 
 ```sh
 go test ./...

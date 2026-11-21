@@ -8,27 +8,38 @@ import (
 	"go-prac/models"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+func openTestDatabase(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	db, err := config.OpenDatabase(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("テストDBの初期化に失敗しました: %v", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("テストDBの接続プールを取得できません: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := sqlDB.Close(); err != nil {
+			t.Errorf("テストDBを閉じられません: %v", err)
+		}
+	})
+	return db
+}
 
 func setupTestRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("テストDBへの接続に失敗しました: %v", err)
-	}
-	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
-		t.Fatalf("外部キー制約の有効化に失敗しました: %v", err)
-	}
-	if err := db.AutoMigrate(&models.Shop{}, &models.User{}, &models.Review{}); err != nil {
-		t.Fatalf("テストDBの作成に失敗しました: %v", err)
-	}
-	config.DB = db
+	previousDB := config.DB
+	config.DB = openTestDatabase(t)
+	t.Cleanup(func() { config.DB = previousDB })
 
 	router := gin.New()
 	router.POST("/reviews", controllers.CreateReview)
@@ -56,6 +67,32 @@ func request(t *testing.T, router http.Handler, method, path, body string) (int,
 	return w.Code, response
 }
 
+func TestSQLiteForeignKeys(t *testing.T) {
+	db := openTestDatabase(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("テストDBの接続プールを取得できません: %v", err)
+	}
+
+	ctx := t.Context()
+	for i := 1; i <= 2; i++ {
+		conn, err := sqlDB.Conn(ctx)
+		if err != nil {
+			t.Fatalf("接続%dの取得に失敗しました: %v", i, err)
+		}
+		// 1本目も保持し、2本目が別のSQLite接続になるようにする。
+		defer conn.Close()
+
+		var enabled int
+		if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&enabled); err != nil {
+			t.Fatalf("接続%dの外部キー設定を読み取れません: %v", i, err)
+		}
+		if enabled != 1 {
+			t.Errorf("接続%dの PRAGMA foreign_keys = %d、期待値は 1", i, enabled)
+		}
+	}
+}
+
 func TestReviewControllers(t *testing.T) {
 	router := setupTestRouter(t)
 
@@ -66,6 +103,29 @@ func TestReviewControllers(t *testing.T) {
 	status, user := request(t, router, http.MethodPost, "/users", `{"name":"太郎","email":"taro@example.com"}`)
 	if status != http.StatusCreated {
 		t.Fatalf("レビュー用ユーザーの作成に失敗しました: status=%d response=%v", status, user)
+	}
+
+	for _, tt := range []struct {
+		name string
+		body string
+	}{
+		{"missing shop", `{"name":"太郎","score":5,"body":"おいしい","shopID":999999,"userID":1}`},
+		{"missing user", `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":999999}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			status, response := request(t, router, http.MethodPost, "/reviews", tt.body)
+			if status != http.StatusInternalServerError {
+				t.Errorf("存在しない参照先を指定した投稿: status=%d response=%v", status, response)
+			}
+
+			var count int64
+			if err := config.DB.Model(&models.Review{}).Count(&count).Error; err != nil {
+				t.Fatalf("レビュー件数の取得に失敗しました: %v", err)
+			}
+			if count != 0 {
+				t.Errorf("存在しない参照先を指定したレビューが保存されています: count=%d", count)
+			}
+		})
 	}
 
 	status, created := request(t, router, http.MethodPost, "/reviews", `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":1}`)
