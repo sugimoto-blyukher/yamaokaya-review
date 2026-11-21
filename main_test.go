@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +44,7 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 
 	router := gin.New()
 	router.POST("/reviews", controllers.CreateReview)
-	router.GET("/reviews", controllers.FindReviews)
+	router.GET("/reviews", controllers.FindAllReviews)
 	router.GET("/reviews/:id", controllers.FindReview)
 	router.POST("/shops", controllers.CreateShop)
 	router.GET("/shops", controllers.FindShops)
@@ -96,6 +97,11 @@ func TestSQLiteForeignKeys(t *testing.T) {
 func TestReviewControllers(t *testing.T) {
 	router := setupTestRouter(t)
 
+	status, empty := request(t, router, http.MethodGet, "/reviews", "")
+	if status != http.StatusOK || empty["count"] != float64(0) || !reflect.DeepEqual(empty["data"], []any{}) {
+		t.Fatalf("空のレビュー一覧: status=%d response=%v", status, empty)
+	}
+
 	status, shop := request(t, router, http.MethodPost, "/shops", `{"name":"山岡家","address":"札幌市","lat":43.0,"lng":141.0}`)
 	if status != http.StatusOK {
 		t.Fatalf("レビュー用店舗の作成に失敗しました: status=%d response=%v", status, shop)
@@ -137,15 +143,38 @@ func TestReviewControllers(t *testing.T) {
 		t.Fatalf("CreateReviewの関連IDが不正です: response=%v", created)
 	}
 
+	wantReview := map[string]any{
+		"name":   "太郎",
+		"score":  float64(5),
+		"shopID": float64(1),
+		"userID": float64(1),
+	}
 	status, found := request(t, router, http.MethodGet, "/reviews/1", "")
-	data, ok := found["data"].(map[string]any)
-	if status != http.StatusOK || !ok || data["name"] != "太郎" || data["score"] != float64(5) {
+	if status != http.StatusOK || found["message"] != "レビューを取得しました" || !reflect.DeepEqual(found["data"], wantReview) {
 		t.Fatalf("FindReview: status=%d response=%v", status, found)
 	}
 
+	status, missing := request(t, router, http.MethodGet, "/reviews/999", "")
+	if status != http.StatusNotFound || missing["error"] != "レビューが見つかりません" {
+		t.Fatalf("存在しないレビューの取得: status=%d response=%v", status, missing)
+	}
+
 	status, list := request(t, router, http.MethodGet, "/reviews", "")
-	if status != http.StatusOK || list["count"] != float64(1) {
-		t.Fatalf("FindReviews: status=%d response=%v", status, list)
+	if status != http.StatusOK || list["message"] != "全てのレビューを取得しました" ||
+		list["count"] != float64(1) || !reflect.DeepEqual(list["data"], []any{wantReview}) {
+		t.Fatalf("FindAllReviews: status=%d response=%v", status, list)
+	}
+}
+
+func TestFindAllReviewsDatabaseError(t *testing.T) {
+	router := setupTestRouter(t)
+	if err := config.DB.Migrator().DropTable(&models.Review{}); err != nil {
+		t.Fatalf("テストDBのレビューテーブルを削除できません: %v", err)
+	}
+
+	status, response := request(t, router, http.MethodGet, "/reviews", "")
+	if status != http.StatusInternalServerError || response["error"] != "レビューの取得に失敗しました" {
+		t.Fatalf("レビュー一覧の取得失敗時: status=%d response=%v", status, response)
 	}
 }
 
