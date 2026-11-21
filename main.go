@@ -34,7 +34,7 @@ func main() {
 	r.GET("/shops", controllers.FindShops)
 	r.POST("/shops", controllers.CreateShop)
 	r.POST("/users", controllers.CreateUser)
-	r.GET("/users", controllers.FindUsers)
+	r.GET("/users", controllers.FindAllUsers)
 	r.GET("/users/:id", controllers.FindUser)
 
 	// 4. 起動

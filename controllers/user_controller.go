@@ -34,34 +34,40 @@ func CreateUser(c *gin.Context) {
 	})
 }
 
-func FindUsers(c *gin.Context) {
-	var users []models.User
-	config.DB.Find(&users)
+func FindAllUsers(c *gin.Context) {
+	users := make([]dtos.UserListItem, 0)
 
-	c.JSON(http.StatusOK, gin.H{"count": len(users), "data": users})
-
+	if err := config.DB.Model(&models.User{}).Select("id", "name").Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "ユーザー一覧の取得に失敗しました",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "全てのユーザーを取得しました",
+		"count":   len(users),
+		"data":    users,
+	})
 }
 
 func FindUser(c *gin.Context) {
+	var user dtos.UserListItem
+
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "IDが指定されていません"})
 		return
 	}
 
-	var user models.User
-	result := config.DB.First(&user, id)
-	if result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "ユーザーが見つかりません"})
+	if err := config.DB.Model(&models.User{}).Select("id", "name").First(&user, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "ユーザーが見つかりません",
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "ユーザーを取得しました",
-		"data": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-		},
+		"data":    user,
 	})
 }
