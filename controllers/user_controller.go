@@ -39,7 +39,7 @@ func FindAllUsers(c *gin.Context) {
 
 	if err := config.DB.Model(&models.User{}).Select("id", "name").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "ユーザー一覧の取得に失敗しました",
+			"error": "ユーザーの取得に失敗しました",
 		})
 		return
 	}
