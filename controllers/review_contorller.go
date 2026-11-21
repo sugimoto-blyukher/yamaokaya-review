@@ -45,7 +45,7 @@ func CreateReview(c *gin.Context) {
 func FindAllReviews(c *gin.Context) {
 	reviews := make([]dtos.ReviewListItem, 0)
 
-	if err := config.DB.Model(&models.Review{}).Select("name", "score", "shopID", "userID").Find(&reviews).Error; err != nil {
+	if err := config.DB.Model(&models.Review{}).Select("name", "score", "shop_id", "user_id").Find(&reviews).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "レビューの取得に失敗しました",
 		})
@@ -67,7 +67,7 @@ func FindReview(c *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Model(&models.Review{}).Select("name", "score", "shopID", "userID").First(&review, "id=?", id).Error; err != nil {
+	if err := config.DB.Model(&models.Review{}).Select("name", "score", "shop_id", "user_id").First(&review, "id=?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "レビューが見つかりません",
 		})
