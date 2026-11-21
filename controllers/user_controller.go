@@ -1,11 +1,15 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
+	"errors"
 	"go-prac/config"
 	"go-prac/dtos"
 	"go-prac/models"
 	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func CreateUser(c *gin.Context) {
@@ -31,7 +35,7 @@ func CreateUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{
 		"data": dtos.UserListItem{
-			ID: user.ID,
+			ID:   user.ID,
 			Name: user.Name,
 		},
 	})
@@ -45,6 +49,7 @@ func FindAllUsers(c *gin.Context) {
 			"error": "ユーザーの取得に失敗しました",
 		})
 		return
+
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"message": "全てのユーザーを取得しました",
@@ -56,17 +61,26 @@ func FindAllUsers(c *gin.Context) {
 func FindUser(c *gin.Context) {
 	var user dtos.UserListItem
 
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDが指定されていません"})
+	id, err := strconv.ParseUint(c.Param("id"), 10, 63)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正な値です",
+		})
 		return
 	}
 
 	if err := config.DB.Model(&models.User{}).Select("id", "name").First(&user, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "ユーザーが見つかりません",
-		})
-		return
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "ユーザーが見つかりません",
+			})
+			return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "ユーザーの取得に失敗しました",
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

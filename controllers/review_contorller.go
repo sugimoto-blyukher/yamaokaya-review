@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"errors"
+	"strconv"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"go-prac/config" // DBを使うために読み込む
 	"go-prac/dtos"
 	"go-prac/models" // 構造体を使うために読み込む
@@ -68,17 +71,26 @@ func FindAllReviews(c *gin.Context) {
 func FindReview(c *gin.Context) {
 	var review dtos.ReviewListItem
 
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "IDが見つかりません"})
+	id, err := strconv.ParseUint(c.Param("id"), 10, 63)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "不正な値です",
+		})
 		return
 	}
 
 	if err := config.DB.Model(&models.Review{}).Select("id", "name", "score", "body", "shop_id", "user_id").First(&review, "id=?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "レビューが見つかりません",
-		})
-		return
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "レビューが見つかりません",
+			})
+			return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "レビューの取得に失敗しました",
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

@@ -46,8 +46,14 @@ func CreateShop(c *gin.Context) {
 
 func FindShops(c *gin.Context) {
 	var shops []dtos.ShopListItem
-	config.DB.Model(&models.Shop{}).Select("id", "name", "address").Find(&shops)
 
+	if err := config.DB.Model(&models.Shop{}).Select("id", "name", "address").Find(&shops).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "店舗の取得に失敗しました",
+		})
+		return
+
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"message": "全ての店舗の取得に成功しました",
 		"count": len(shops),
