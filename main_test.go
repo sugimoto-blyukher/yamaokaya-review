@@ -48,7 +48,7 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 	router.POST("/shops", controllers.CreateShop)
 	router.GET("/shops", controllers.FindShops)
 	router.POST("/users", controllers.CreateUser)
-	router.GET("/users", controllers.FindUsers)
+	router.GET("/users", controllers.FindAllUsers)
 	router.GET("/users/:id", controllers.FindUser)
 	return router
 }
@@ -177,13 +177,23 @@ func TestUserControllers(t *testing.T) {
 
 	status, found := request(t, router, http.MethodGet, "/users/1", "")
 	data, ok := found["data"].(map[string]any)
-	if status != http.StatusOK || !ok || data["email"] != "hanako@example.com" {
+	if status != http.StatusOK || !ok || len(data) != 2 || data["id"] != float64(1) || data["name"] != "花子" {
 		t.Fatalf("FindUser: status=%d response=%v", status, found)
 	}
 
+	status, missing := request(t, router, http.MethodGet, "/users/999", "")
+	if status != http.StatusNotFound {
+		t.Fatalf("存在しないユーザーの取得: status=%d response=%v", status, missing)
+	}
+
 	status, list := request(t, router, http.MethodGet, "/users", "")
-	if status != http.StatusOK || list["count"] != float64(1) {
-		t.Fatalf("FindUsers: status=%d response=%v", status, list)
+	users, ok := list["data"].([]any)
+	if status != http.StatusOK || list["count"] != float64(1) || !ok || len(users) != 1 {
+		t.Fatalf("FindAllUsers: status=%d response=%v", status, list)
+	}
+	user, ok := users[0].(map[string]any)
+	if !ok || len(user) != 2 || user["id"] != float64(1) || user["name"] != "花子" {
+		t.Fatalf("ユーザー一覧の項目が不正です: response=%v", list)
 	}
 }
 
