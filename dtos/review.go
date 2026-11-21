@@ -9,9 +9,9 @@ type CreateReviewRequest struct {
 }
 
 type ReviewListItem struct {
-	Name	string `json:"name" binding:"required"`
+	Name	string `json:"name"`
 	Score  	int    `json:"score"`
-	Body	string `json:"body" binding:"required"`
-	ShopID uint   `json:"shopID" binding:"required"`
-	UserID uint   `json:"userID" binding:"required"`
+	Body	string `json:"body"`
+	ShopID uint   `json:"shopID"`
+	UserID uint   `json:"userID"`
 }
