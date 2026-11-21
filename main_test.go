@@ -164,15 +164,46 @@ func TestReviewControllers(t *testing.T) {
 	}
 }
 
-func TestFindAllReviewsDatabaseError(t *testing.T) {
-	router := setupTestRouter(t)
-	if err := config.DB.Migrator().DropTable(&models.Review{}); err != nil {
-		t.Fatalf("テストDBのレビューテーブルを削除できません: %v", err)
-	}
+func TestSearchDatabaseError(t *testing.T) {
+	for _, tt := range []struct {
+		path      string
+		model     any
+		wantError string
+	}{
+		{"reviews", &models.Review{}, "レビューの取得に失敗しました"},
+		{"reviews/1", &models.Review{}, "レビューの取得に失敗しました"},
+		{"shops", &models.Shop{}, "店舗の取得に失敗しました"},
+		{"users", &models.User{}, "ユーザーの取得に失敗しました"},
+		{"users/1", &models.User{}, "ユーザーの取得に失敗しました"},
+	} {
+		t.Run(tt.path, func(t *testing.T) {
+			router := setupTestRouter(t)
+			if err := config.DB.Migrator().DropTable(tt.model); err != nil {
+				t.Fatalf("テストDBの検索対象テーブルを削除できません: %v", err)
+			}
 
-	status, response := request(t, router, http.MethodGet, "/reviews", "")
-	if status != http.StatusInternalServerError || response["error"] != "レビューの取得に失敗しました" {
-		t.Fatalf("レビュー一覧の取得失敗時: status=%d response=%v", status, response)
+			status, response := request(t, router, http.MethodGet, "/"+tt.path, "")
+			if status != http.StatusInternalServerError || response["error"] != tt.wantError {
+				t.Fatalf("status=%d response=%v, want status=%d error=%q",
+					status, response, http.StatusInternalServerError, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestSearchInvalidID(t *testing.T) {
+	router := setupTestRouter(t)
+
+	for _, resource := range []string{"reviews", "users"} {
+		for _, id := range []string{"abc", "0", "-1", "9223372036854775808"} {
+			path := resource + "/" + id
+			t.Run(path, func(t *testing.T) {
+				status, response := request(t, router, http.MethodGet, "/"+path, "")
+				if status != http.StatusBadRequest {
+					t.Fatalf("status=%d response=%v, want status=%d", status, response, http.StatusBadRequest)
+				}
+			})
+		}
 	}
 }
 
