@@ -30,7 +30,10 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"data": dtos.UserListItem{
+			ID: user.ID,
+			Name: user.Name,
+		},
 	})
 }
 

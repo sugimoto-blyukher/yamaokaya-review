@@ -35,7 +35,14 @@ func CreateReview(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": review,
+		"data": dtos.ReviewListItem{
+			ID: 	review.ID,
+			Name:   review.Name,
+			Score:  review.Score,
+			Body:   review.Body,
+			ShopID: review.ShopID,
+			UserID: review.UserID,
+		},
 	})
 
 	//c.JSON(http.StatusOK, gin.H{"message": "保存しました", "data": newReview})
@@ -45,16 +52,16 @@ func CreateReview(c *gin.Context) {
 func FindAllReviews(c *gin.Context) {
 	reviews := make([]dtos.ReviewListItem, 0)
 
-	if err := config.DB.Model(&models.Review{}).Select("name", "score", "body", "shop_id", "user_id").Find(&reviews).Error; err != nil {
+	if err := config.DB.Model(&models.Review{}).Select("id", "name", "score", "body", "shop_id", "user_id").Find(&reviews).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "レビューの取得に失敗しました",
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H {
+	c.JSON(http.StatusOK, gin.H{
 		"message": "全てのレビューを取得しました",
-		"count": len(reviews),
-		"data": reviews,
+		"count":   len(reviews),
+		"data":    reviews,
 	})
 }
 
@@ -67,7 +74,7 @@ func FindReview(c *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Model(&models.Review{}).Select("name", "score", "body", "shop_id", "user_id").First(&review, "id=?", id).Error; err != nil {
+	if err := config.DB.Model(&models.Review{}).Select("id", "name", "score", "body", "shop_id", "user_id").First(&review, "id=?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "レビューが見つかりません",
 		})
@@ -76,7 +83,7 @@ func FindReview(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "レビューを取得しました",
-		"data": review,
+		"data":    review,
 	})
 
 }
