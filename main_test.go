@@ -146,6 +146,7 @@ func TestReviewControllers(t *testing.T) {
 	wantReview := map[string]any{
 		"name":   "太郎",
 		"score":  float64(5),
+		"body":   "おいしい",
 		"shopID": float64(1),
 		"userID": float64(1),
 	}
