@@ -11,9 +11,7 @@ import (
 
 func main() {
 	// 1. DB接続開始
-	db, err := config.OpenDatabase(
-		"test.db?foreign_keys=on",
-	)
+	db, err := config.OpenDatabase("test.db")
 	if err != nil {
 		log.Fatal(err)
 	}
