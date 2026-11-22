@@ -120,8 +120,10 @@ func TestReviewControllers(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			status, response := request(t, router, http.MethodPost, "/reviews", tt.body)
-			if status != http.StatusInternalServerError {
-				t.Errorf("存在しない参照先を指定した投稿: status=%d response=%v", status, response)
+			const wantError = "指定された店舗またはユーザーが存在しません"
+			if status != http.StatusBadRequest || response["error"] != wantError {
+				t.Errorf("status=%d response=%v, want status=%d error=%q",
+					status, response, http.StatusBadRequest, wantError)
 			}
 
 			var count int64
@@ -161,6 +163,47 @@ func TestReviewControllers(t *testing.T) {
 	if status != http.StatusOK || list["message"] != "全てのレビューを取得しました" ||
 		list["count"] != float64(1) || !reflect.DeepEqual(list["data"], []any{wantReview}) {
 		t.Fatalf("FindAllReviews: status=%d response=%v", status, list)
+	}
+}
+
+func TestCreateDatabaseError(t *testing.T) {
+	for _, tt := range []struct {
+		path      string
+		model     any
+		body      string
+		wantError string
+	}{
+		{
+			path:      "users",
+			model:     &models.User{},
+			body:      `{"name":"花子","email":"hanako@example.com"}`,
+			wantError: "ユーザーの登録に失敗しました",
+		},
+		{
+			path:      "shops",
+			model:     &models.Shop{},
+			body:      `{"name":"山岡家","address":"札幌市","lat":43.0,"lng":141.0}`,
+			wantError: "店舗の登録に失敗しました",
+		},
+		{
+			path:      "reviews",
+			model:     &models.Review{},
+			body:      `{"name":"太郎","score":5,"body":"おいしい","shopID":1,"userID":1}`,
+			wantError: "投稿に失敗しました",
+		},
+	} {
+		t.Run(tt.path, func(t *testing.T) {
+			router := setupTestRouter(t)
+			if err := config.DB.Migrator().DropTable(tt.model); err != nil {
+				t.Fatalf("テストDBの登録先テーブルを削除できません: %v", err)
+			}
+
+			status, response := request(t, router, http.MethodPost, "/"+tt.path, tt.body)
+			if status != http.StatusInternalServerError || response["error"] != tt.wantError {
+				t.Fatalf("status=%d response=%v, want status=%d error=%q",
+					status, response, http.StatusInternalServerError, tt.wantError)
+			}
+		})
 	}
 }
 
@@ -246,6 +289,13 @@ func TestUserControllers(t *testing.T) {
 	status, created := request(t, router, http.MethodPost, "/users", `{"name":"花子","email":"hanako@example.com"}`)
 	if status != http.StatusCreated || !reflect.DeepEqual(created["data"], wantUser) {
 		t.Fatalf("CreateUser: status=%d response=%v", status, created)
+	}
+
+	status, duplicate := request(t, router, http.MethodPost, "/users", `{"name":"別のユーザー","email":"hanako@example.com"}`)
+	const wantDuplicateError = "メールアドレスが重複しています"
+	if status != http.StatusConflict || duplicate["error"] != wantDuplicateError {
+		t.Fatalf("status=%d response=%v, want status=%d error=%q",
+			status, duplicate, http.StatusConflict, wantDuplicateError)
 	}
 
 	status, found := request(t, router, http.MethodGet, "/users/1", "")
