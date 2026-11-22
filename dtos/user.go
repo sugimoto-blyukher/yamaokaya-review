@@ -6,6 +6,6 @@ type CreateUserRequest struct {
 }
 
 type UserListItem struct {
-	ID		uint	`json:"id"`
-	Name 	string	`json:"name"`
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }
