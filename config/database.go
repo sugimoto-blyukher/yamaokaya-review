@@ -13,7 +13,7 @@ var DB *gorm.DB
 func OpenDatabase(path string) (*gorm.DB, error) {
 	db, err := gorm.Open(
 		sqlite.Open(path+"?_foreign_keys=on"),
-		&gorm.Config{},
+		&gorm.Config{TranslateError: true},
 	)
 	if err != nil {
 		return nil, fmt.Errorf(

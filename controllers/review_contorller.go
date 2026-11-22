@@ -2,13 +2,13 @@ package controllers
 
 import (
 	"errors"
-	"strconv"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"go-prac/config" // DBを使うために読み込む
 	"go-prac/dtos"
 	"go-prac/models" // 構造体を使うために読み込む
+	"gorm.io/gorm"
 	"net/http"
+	"strconv"
 )
 
 // レビュー投稿 (POST)
@@ -31,15 +31,21 @@ func CreateReview(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&review).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "投稿に失敗しました",
-		})
+		if errors.Is(err, gorm.ErrForeignKeyViolated) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "指定された店舗またはユーザーが存在しません",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "投稿に失敗しました",
+			})
+		}
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"data": dtos.ReviewListItem{
-			ID: 	review.ID,
+			ID:     review.ID,
 			Name:   review.Name,
 			Score:  review.Score,
 			Body:   review.Body,

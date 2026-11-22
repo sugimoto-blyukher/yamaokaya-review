@@ -28,9 +28,15 @@ func CreateUser(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "ユーザーの登録に失敗しました",
-		})
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "メールアドレスが重複しています",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "ユーザーの登録に失敗しました",
+			})
+		}
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{

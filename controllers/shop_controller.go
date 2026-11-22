@@ -56,7 +56,7 @@ func FindShops(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"message": "全ての店舗の取得に成功しました",
-		"count": len(shops),
-		"data": shops,
+		"count":   len(shops),
+		"data":    shops,
 	})
 }
